@@ -4,8 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paylum</title>
+    <style>
+        body {
+            background-color: black;
+            background-image: url("Images/BackgroundImageIndex.jpg");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+            font-family: Arial, Helvetica, sans-serif;
+            height: 100vh;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 40px;
+            overflow-y: hidden;
+            overflow-x: auto;  
+            color: white;
+        }
+        .entry-point {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 80px); 
+            text-align: center;
+            gap: 12px;
+        }
+        .entry-point img {
+            height: 16rem;
+            margin-bottom: 8px; 
+        } 
+        .text-entry {
+            font-size: 1.6rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 6px rgba(0, 255, 255, 0.3);
+            margin: 0;
+        }
+        .select-option {
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            gap: 15px;
+            margin-top: 16px;
+            width: 300px;
+            padding: 30px 20px;
+            border-radius: 15px;
+            animation: animate 2s linear infinite;
+            box-shadow: 0 0 30px limegreen, 0 0 30px deepskyblue;
+        }
+        @keyframes animate {
+            0% {
+                filter: hue-rotate(0deg);
+            }
+            100% {
+                filter: hue-rotate(360deg);
+            }
+        }
+        .select-option button {
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            background-color: #00bfa5;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .select-option button:hover {
+            background-color: #008e76;
+        }
+    </style>
 </head>
 <body>
-    
+    <div class="entry-point">
+        <img src="Images/startingImageLogo-removebg-preview.png" alt="">
+        <div class="text-entry">Welcome to Paylum</div>
+        <div class="text-entry">Select any of the below options</div>
+        <div class="select-option">
+            <button onclick="window.location.href='login.html'">Login</button>
+            <button onclick="window.location.href='signUp.html'">Login</button>
+        </div>
+    </div>
 </body>
 </html>
