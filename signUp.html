@@ -1,11 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paylum SignUp</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Paylum SignUp</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      font-family: Arial, Helvetica, sans-serif;
+      color: white;
+      height: 100vh;
+      background: url("Images/BackgroundImageIndex.jpg") no-repeat center center fixed;
+      background-size: cover;
+      position: relative;
+    }
+
+    .main-part {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: calc(100vh - 80px);
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .signup-box {
+      position: relative;
+      background-color: rgba(0, 0, 0, 0.75);
+      padding: 30px 20px;
+      border-radius: 15px;
+      width: 350px;
+      box-shadow: 0 0 30px deeppink, 0 0 30px cyan;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .signup-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: repeating-conic-gradient(from 0deg, red, orange, yellow, green, blue, indigo, violet, red);
+      animation: spiral 10s linear infinite;
+      z-index: 0;
+      opacity: 0.3;
+      filter: blur(20px);
+    }
+
+    .signup-box * {
+      position: relative;
+      z-index: 1;
+    }
+
+    @keyframes spiral {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .form-control::placeholder {
+      color: #444;
+      font-weight: 500;
+    }
+
+    .btn-custom {
+      background-color: #00bfa5;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-custom:hover {
+      background-color: #008e76;
+    }
+
+    .reload-btn {
+      background-color: #ffc107;
+      color: black;
+      font-weight: bold;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .reload-btn:hover {
+      background-color: #e0a800;
+    }
+
+    .logo-link {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 999;
+    }
+
+    .logo-link img {
+      height: 100px;
+      cursor: pointer;
+    }
+
+    .error-msg {
+      font-size: 0.85rem;
+      color: #ff4d4d;
+      margin-bottom: 8px;
+    }
+  </style>
 </head>
 <body>
-    
+
+  <a href="index.html" class="logo-link">
+    <img src="Images/Logo2-removebg-preview.png" alt="Paylum Logo">
+  </a>
+
+  <div class="main-part">
+    <div class="text-entry fs-4 fw-bold text-shadow mb-4">Create Your Paylum Account</div>
+
+    <form id="signupForm" class="signup-box" novalidate>
+      <input type="text" id="name" class="form-control mb-2" placeholder="Full Name" required />
+      <input type="email" id="email" class="form-control mb-2" placeholder="Email" required />
+      <input type="tel" id="phone" class="form-control mb-2" placeholder="Phone Number" required />
+      <input type="date" id="dob" class="form-control mb-2" placeholder="Date of Birth" required />
+      <select id="gender" class="form-control mb-2" required>
+        <option value="">Select Gender</option>
+        <option>Male</option>
+        <option>Female</option>
+        <option>Other</option>
+      </select>
+      <input type="text" id="aadhaar" class="form-control mb-2" placeholder="Aadhaar Number" required />
+      <input type="password" id="password" class="form-control mb-2" placeholder="Password" required />
+
+      <div class="mb-2 d-flex justify-content-between align-items-center">
+        <span id="captchaCode" class="fw-bold fs-5 text-info">Loading...</span>
+        <button type="button" class="reload-btn" onclick="generateCaptcha()">⟳ Reload</button>
+      </div>
+      <input type="text" id="captcha" class="form-control mb-2" placeholder="Enter CAPTCHA above" required />
+
+      <div id="errorContainer" class="text-start"></div>
+      <input type="submit" class="btn btn-custom w-100" value="Sign Up" />
+    </form>
+  </div>
+
+  <script>
+    let currentCaptcha = "";
+
+    function generateCaptcha() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      currentCaptcha = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      document.getElementById("captchaCode").textContent = currentCaptcha;
+    }
+
+    document.getElementById("signupForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const errorContainer = document.getElementById("errorContainer");
+      errorContainer.innerHTML = "";
+
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const dob = document.getElementById("dob").value;
+      const gender = document.getElementById("gender").value;
+      const aadhaar = document.getElementById("aadhaar").value.trim();
+      const password = document.getElementById("password").value;
+      const captcha = document.getElementById("captcha").value.trim();
+
+      let valid = true;
+
+      function showError(msg) {
+        const div = document.createElement("div");
+        div.className = "error-msg";
+        div.textContent = msg;
+        errorContainer.appendChild(div);
+        valid = false;
+      }
+
+      if (!/^[A-Za-z\s]{3,50}$/.test(name)) showError("Name must be 3–50 letters only.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) showError("Invalid email format.");
+      if (!/^[6-9]\d{9}$/.test(phone)) showError("Enter a valid 10-digit Indian mobile number.");
+      if (!dob || new Date(dob) >= new Date()) showError("Date of birth must be in the past.");
+      if (!gender) showError("Please select a gender.");
+      if (!/^\d{12}$/.test(aadhaar)) showError("Aadhaar must be exactly 12 digits.");
+      if (/[<>"'`]/.test(password)) showError("Password contains invalid characters.");
+      if (captcha !== currentCaptcha) showError("Incorrect CAPTCHA code.");
+
+      if (valid) {
+        alert("Signup successful! Proceeding...");
+        // Add backend integration here
+      }
+    });
+
+    window.onload = generateCaptcha;
+  </script>
 </body>
 </html>
