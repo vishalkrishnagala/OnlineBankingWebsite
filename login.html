@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Paylum Login</title>
 
-  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
     body {
@@ -48,18 +45,12 @@
       100% { filter: hue-rotate(360deg); }
     }
 
-    .form-control::placeholder {
-      color: #444;
-      font-weight: 500;
-    }
-
     .btn-custom {
       background-color: #00bfa5;
       color: white;
       font-weight: bold;
       border: none;
       border-radius: 8px;
-      transition: background-color 0.3s ease;
     }
 
     .btn-custom:hover {
@@ -80,13 +71,14 @@
     }
 
     .logo-link img {
-      height: 100px;
+      height: 90px;
     }
 
     .logo-link {
       position: absolute;
       top: 10px;
       left: 10px;
+      cursor: pointer;
     }
 
     .error-msg {
@@ -104,90 +96,153 @@
       border-radius: 6px;
     }
 
-    .reload-btn:hover {
-      background-color: #e0a800;
+    .new-user {
+      margin-top: 15px;
+      color: #00e6e6;
+      font-weight: bold;
+      cursor: pointer;
     }
   </style>
 </head>
+
 <body>
 
-  <!-- Logo in top-left corner -->
+  <!-- Logo -->
   <a href="index.html" class="logo-link">
-    <img src="Images/Logo2-removebg-preview.png" alt="Paylum Logo">
+    <img src="Images/Logo2-removebg-preview.png">
   </a>
 
   <div class="main-part">
-    <div class="text-entry fs-4 fw-bold text-shadow mb-4">Login to Paylum</div>
+    <div class="fs-4 fw-bold mb-4">Login to Paylum</div>
 
-    <form id="loginForm" class="login-box" novalidate>
-      <input type="text" id="usernameInput" class="form-control mb-1" placeholder="Username" required />
-      <div id="usernameError" class="error-msg"></div>
+    <form id="loginForm" class="login-box">
+
+      <input type="text" id="loginIdentifier" class="form-control mb-1" placeholder="Email" required />
+      <div id="loginIdError" class="error-msg"></div>
 
       <div class="password-wrapper mb-1">
-        <input type="password" id="passwordInput" class="form-control" placeholder="Password" required />
-        <span class="toggle-password" onclick="togglePassword()">👁️</span>
+        <input type="password" id="loginPassword" class="form-control" placeholder="Password" required />
+        <span class="toggle-password" onclick="togglePassword('loginPassword')">👁️</span>
       </div>
-      <div id="passwordError" class="error-msg"></div>
+      <div id="loginPassError" class="error-msg"></div>
 
-      <div class="mb-1 d-flex justify-content-between align-items-center">
-        <span id="captchaCode" class="fw-bold fs-5 text-info">Loading...</span>
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span id="loginCaptchaCode" class="fw-bold fs-5 text-info">Loading...</span>
         <button type="button" class="reload-btn" onclick="generateCaptcha()">⟳ Reload</button>
       </div>
-      <input type="text" id="captchaInput" class="form-control mb-1" placeholder="Enter the code above" required />
-      <div id="captchaError" class="error-msg"></div>
 
-      <input type="submit" class="btn btn-custom w-100" value="Submit" />
+      <input type="text" id="loginCaptchaInput" class="form-control mb-1" placeholder="Enter CAPTCHA" required />
+      <div id="loginCaptchaError" class="error-msg"></div>
+
+      <!-- Login -->
+      <button type="submit" class="btn btn-custom w-100 mt-2">Login</button>
+
+      <button type="button" onclick="window.location.href='index.html'" class="btn btn-secondary w-100 mt-2">
+        ⬅ Back
+      </button>
+      <!-- Forgot Password -->
+      <div class="mt-2">
+        <a href="resetpassword.html" style="color:#ffc107; text-decoration:none; font-weight:bold;">
+          Forgot Password?
+        </a>
+      </div>
+
+
+      <!-- New User -->
+      <div class="new-user" onclick="window.location.href='signup.html'">
+        New user? Click here to create an account
+      </div>
+
     </form>
   </div>
 
-  <script>
-    let currentCaptcha = "";
+ <script type="module">
+  import { supabase } from "./config/supabaseClient.js";
 
-    function generateCaptcha() {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      currentCaptcha = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-      document.getElementById("captchaCode").textContent = currentCaptcha;
+  let loginCaptcha = "";
+
+  /* ---------------- CAPTCHA ---------------- */
+  function generateCaptcha() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    loginCaptcha = Array.from({ length: 6 }, () =>
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join("");
+    document.getElementById("loginCaptchaCode").textContent = loginCaptcha;
+  }
+  window.generateCaptcha = generateCaptcha;
+  window.onload = generateCaptcha;
+
+  /* ---------------- TOGGLE PASSWORD ---------------- */
+  window.togglePassword = function(id) {
+    const input = document.getElementById(id);
+    input.type = input.type === "password" ? "text" : "password";
+  };
+
+  /* ---------------- SHA256 ---------------- */
+  async function sha256(text) {
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return [...new Uint8Array(buf)]
+      .map(x => x.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  /* ---------------- LOGIN FLOW ---------------- */
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Clear old errors
+    loginIdError.textContent = "";
+    loginPassError.textContent = "";
+    loginCaptchaError.textContent = "";
+
+    const email = loginIdentifier.value.trim();
+    const password = loginPassword.value.trim();
+    const captcha = loginCaptchaInput.value.trim();
+
+    if (!email) {
+      loginIdError.textContent = "Email is required.";
+      return;
     }
 
-    function togglePassword() {
-      const input = document.getElementById("passwordInput");
-      input.type = input.type === "password" ? "text" : "password";
+    if (!password) {
+      loginPassError.textContent = "Password is required.";
+      return;
     }
 
-    document.getElementById("loginForm").addEventListener("submit", function (e) {
-      e.preventDefault();
+    if (captcha !== loginCaptcha) {
+      loginCaptchaError.textContent = "Incorrect CAPTCHA.";
+      generateCaptcha();
+      return;
+    }
 
-      document.getElementById("usernameError").textContent = "";
-      document.getElementById("passwordError").textContent = "";
-      document.getElementById("captchaError").textContent = "";
+    const hashedPassword = await sha256(password);
 
-      const username = document.getElementById("usernameInput").value.trim();
-      const password = document.getElementById("passwordInput").value.trim();
-      const captcha = document.getElementById("captchaInput").value.trim();
-      let valid = true;
+    // ✅ Fetch user
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
 
-      if (!/^[a-zA-Z0-9]{3,20}$/.test(username)) {
-        document.getElementById("usernameError").textContent = "Username must be 3–20 alphanumeric characters.";
-        valid = false;
-      }
+    // ❌ Email not found
+    if (!user || error) {
+      loginIdError.textContent = "Email not registered.";
+      return;
+    }
 
-      if (/[<>"'`]/.test(password)) {
-        document.getElementById("passwordError").textContent = "Password contains invalid characters.";
-        valid = false;
-      }
+    // ❌ Password mismatch
+    if (user.password_hash !== hashedPassword) {
+      loginPassError.textContent = "Incorrect password.";
+      return;
+    }
 
-      if (captcha !== currentCaptcha) {
-        document.getElementById("captchaError").textContent = "Incorrect CAPTCHA code.";
-        valid = false;
-      }
+    // ✅ SUCCESS → OTP LOGIN
+    localStorage.setItem("email_for_otp_login", email);
+    window.location.href = "loginotp.html";
+  });
+</script>
 
-      if (valid) {
-        alert("Validation passed. Proceeding with login...");
-        // Add backend integration here
-      }
-    });
 
-    window.onload = generateCaptcha;
-  </script>
 </body>
 </html>

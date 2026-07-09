@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alerts & Preferences – Paylum Bank</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+body{
+  background:url("../Images/BackgroundImageIndex.jpg") center/cover fixed;
+  color:#fff;
+  font-family:'Segoe UI',sans-serif;
+  margin:0;
+}
+
+.sidebar{
+  position:fixed;
+  top:0;
+  left:-250px;
+  width:250px;
+  height:100%;
+  background:rgba(0,0,0,.9);
+  padding-top:60px;
+  transition:left .25s;
+  z-index:999
+}
+.sidebar.show{left:0}
+.sidebar a{
+  display:block;
+  padding:15px 25px;
+  color:#ccc;
+  text-decoration:none;
+  font-weight:500
+}
+.sidebar a:hover{background:#00e6e6;color:#000}
+
+.menu-toggle{
+  position:fixed;
+  top:15px;
+  left:15px;
+  z-index:1000
+}
+.menu-toggle img{width:40px}
+
+.box{
+  background:rgba(0,0,0,.85);
+  padding:40px;
+  border-radius:15px;
+  box-shadow:0 0 15px #00e6e6;
+  margin-top:120px
+}
+
+footer{
+  background:#000;
+  text-align:center;
+  padding:20px;
+  color:#aaa;
+  margin-top:100px
+}
+</style>
+</head>
+
+<body>
+
+<!-- MENU BUTTON -->
+<div class="menu-toggle">
+  <button id="menuBtn" class="btn btn-link p-0">
+    <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+  </button>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar" class="sidebar">
+  <a href="../main.html"><i class="bi bi-house-door"></i> Home</a>
+  <a href="../main.html"><i class="bi bi-person-circle"></i> Account</a>
+  <a href="alerts.html"><i class="bi bi-bell"></i> Alerts</a>
+  <a href="../login.html"><i class="bi bi-box-arrow-right"></i> Logout</a>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container">
+ <div class="box">
+  <h2 class="text-info mb-4"><i class="bi bi-bell"></i> Alerts & Preferences</h2>
+
+  <form id="alertForm">
+
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" id="bal">
+      <label class="form-check-label" for="bal">
+        Balance Alerts
+      </label>
+    </div>
+
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" id="txn">
+      <label class="form-check-label" for="txn">
+        Transaction Alerts
+      </label>
+    </div>
+
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="offer">
+      <label class="form-check-label" for="offer">
+        Offers & Promotions
+      </label>
+    </div>
+
+    <button class="btn btn-success w-100">
+      <i class="bi bi-check2"></i> Save Preferences
+    </button>
+
+  </form>
+
+  <div id="alertMsg" class="text-center mt-3 fw-bold"></div>
+
+ </div>
+</div>
+
+<footer>&copy; 2025 Paylum Bank</footer>
+
+<script type="module">
+import { supabase } from "../config/supabaseClient.js";
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  // -----------------------------
+  // AUTH GUARD
+  // -----------------------------
+  const loggedEmail = localStorage.getItem("logged_in_email");
+  if (!loggedEmail) {
+    alert("Session expired. Please login again.");
+    window.location.href = "../login.html";
+    return;
+  }
+
+  // -----------------------------
+  // FETCH USER ID
+  // -----------------------------
+  const { data: users } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", loggedEmail)
+    .limit(1);
+
+  if (!users || users.length === 0) {
+    alert("User session invalid.");
+    localStorage.clear();
+    window.location.href = "../login.html";
+    return;
+  }
+
+  const userId = users[0].id;
+
+  // -----------------------------
+  // SIDEBAR TOGGLE
+  // -----------------------------
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("menuBtn");
+
+  menuBtn.addEventListener("click", () => sidebar.classList.toggle("show"));
+  document.addEventListener("click", (e) => {
+    if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+      sidebar.classList.remove("show");
+    }
+  });
+
+  // -----------------------------
+  // FORM ELEMENTS
+  // -----------------------------
+  const balChk   = document.getElementById("bal");
+  const txnChk   = document.getElementById("txn");
+  const offerChk = document.getElementById("offer");
+  const msg      = document.getElementById("alertMsg");
+  const form     = document.getElementById("alertForm");
+
+  // -----------------------------
+  // LOAD DB SETTINGS ✅
+  // -----------------------------
+  const { data: settings } = await supabase
+    .from("security_settings")
+    .select("*")
+    .eq("id", userId)
+    .limit(1)
+    .single();
+
+  if (settings) {
+    balChk.checked   = settings.balance_alerts;
+    txnChk.checked   = settings.transaction_alerts;
+    offerChk.checked = settings.offers_alerts;
+  } else {
+    // Auto-create row if missing
+    await supabase.from("security_settings").insert({
+      id: userId,
+      balance_alerts: true,
+      transaction_alerts: true,
+      offers_alerts: false
+    });
+
+    balChk.checked = true;
+    txnChk.checked = true;
+    offerChk.checked = false;
+  }
+
+  // -----------------------------
+  // SAVE TO DB ✅
+  // -----------------------------
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const { error } = await supabase
+      .from("security_settings")
+      .update({
+        balance_alerts: balChk.checked,
+        transaction_alerts: txnChk.checked,
+        offers_alerts: offerChk.checked
+      })
+      .eq("id", userId);
+
+    if (error) {
+      msg.style.color = "red";
+      msg.textContent = "Failed to save settings.";
+      console.error(error);
+    } else {
+      msg.style.color = "#00e6e6";
+      msg.textContent = "Preferences saved successfully!";
+    }
+
+    setTimeout(() => msg.textContent = "", 3000);
+  });
+
+});
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paylum - OTP Verification</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: url("Images/BackgroundImageIndex.jpg") no-repeat center center fixed;
+      background-size: cover;
+      font-family: Arial, Helvetica, sans-serif;
+      color: white;
+      height: 100vh;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .logo {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+
+    .logo img {
+      height: 90px;
+      cursor: pointer;
+    }
+
+    .main {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 80px);
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .otp-box {
+      background: rgba(0, 0, 0, 0.75);
+      width: 380px;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 30px deeppink, 0 0 30px cyan;
+    }
+
+    .otp-inputs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .otp-inputs input {
+      width: 50px;
+      height: 55px;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid cyan;
+      color: white;
+      border-radius: 8px;
+    }
+
+    .timer {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #ffdf70;
+    }
+  </style>
+</head>
+
+<body>
+
+<a class="logo" href="index.html">
+  <img src="Images/Logo2-removebg-preview.png">
+</a>
+
+<div class="main">
+
+  <div class="otp-box">
+    <h2 class="fw-bold">OTP Verification</h2>
+    <p>Enter the 6-digit OTP sent to your email</p>
+
+    <div class="otp-inputs">
+      <input maxlength="1" class="otp" inputmode="numeric">
+      <input maxlength="1" class="otp" inputmode="numeric">
+      <input maxlength="1" class="otp" inputmode="numeric">
+      <input maxlength="1" class="otp" inputmode="numeric">
+      <input maxlength="1" class="otp" inputmode="numeric">
+      <input maxlength="1" class="otp" inputmode="numeric">
+    </div>
+
+    <button id="verifyBtn" class="btn btn-success w-100 mt-3">Verify OTP</button>
+
+    <span id="resendBtn" class="text-info mt-2" style="cursor:pointer;">Resend OTP</span>
+
+    <button onclick="window.location.href='signup.html'" class="btn btn-secondary w-100 mt-3">
+      ⬅ Back
+    </button>
+
+    <div id="timerDisplay" class="timer">⏳ Time Left: 30s</div>
+    <div style="margin-top:10px; font-size:13px; color:#ffdf70;">
+      ⚠ If you did not receive the OTP, please check your <b>Spam / Junk</b> folder.
+    </div>
+  </div>
+</div>
+
+<!-- ⭐ SUCCESS POPUP -->
+<div class="modal fade" id="successModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#0d0d0d; border:2px solid cyan; color:white;">
+      <div class="modal-header">
+        <h5 class="modal-title">🎉 Account Created Successfully!</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p>Your new Paylum account number is:</p>
+        <h3 id="accNum" style="color:#00e6e6;"></h3>
+      </div>
+      <div class="modal-footer">
+        <button id="goLogin" class="btn btn-success w-100">Proceed to Login</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+<script type="module">
+  import { supabase } from "./config/supabaseClient.js";
+
+
+  import {
+  EMAILJS_PUBLIC_KEY,
+  EMAILJS_SERVICE_ID,
+  EMAILJS_TEMPLATE_ID
+} from "./config/emailjs.js";
+
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+  /* ---------------------------------------------------------
+      🔒 SECURITY FIX — STOP DIRECT ACCESS
+  ----------------------------------------------------------*/
+  const signupData = JSON.parse(localStorage.getItem("signup_data"));
+  if (!signupData) {
+    alert("Unauthorized access! Please sign up first.");
+    window.location.href = "signup.html";
+  }
+
+  const otpInputs = document.querySelectorAll(".otp");
+  const verifyBtn = document.getElementById("verifyBtn");
+  const resendBtn = document.getElementById("resendBtn");
+  const timerDisplay = document.getElementById("timerDisplay");
+
+  let otp = Math.floor(100000 + Math.random() * 900000).toString();
+  let timeLeft = 30;
+  let timer;
+
+  sendEmailOtp(signupData.email, otp);
+  startTimer();
+
+  function startTimer() {
+    clearInterval(timer);
+    timeLeft = 30;
+    verifyBtn.disabled = false;
+
+    timer = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = `⏳ Time Left: ${timeLeft}s`;
+
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        timerDisplay.textContent = "❌ OTP Expired";
+        verifyBtn.disabled = true;
+      }
+    }, 1000);
+  }
+
+  function sendEmailOtp(email, code) {
+    emailjs.send(
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID,
+    {
+      passcode: code,
+      time: "30 seconds",
+      email: email
+    }
+  ).catch(err => alert("OTP sending failed."));
+  }
+
+  // ✅ Perfect OTP Input + Backspace Navigation (Signup)
+otpInputs.forEach((input, index) => {
+
+  // Numbers only + auto forward
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/[^0-9]/g, "");
+    if (input.value && index < otpInputs.length - 1) {
+      otpInputs[index + 1].focus();
+    }
+  });
+
+  // ✅ Proper Backspace Handling
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace") {
+
+      // If current box has value → clear only
+      if (input.value !== "") {
+        input.value = "";
+        return;
+      }
+
+      // If empty → move to previous box
+      if (index > 0) {
+        otpInputs[index - 1].focus();
+        otpInputs[index - 1].value = "";
+      }
+    }
+  });
+
+});
+
+
+  verifyBtn.addEventListener("click", async () => {
+    let entered = "";
+    otpInputs.forEach(i => entered += i.value);
+
+    if (entered.length !== 6) return alert("Enter all digits");
+    if (entered !== otp) return alert("Incorrect OTP!");
+
+    // Hash password
+    const buffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(signupData.password)
+    );
+    const hashHex = [...new Uint8Array(buffer)]
+      .map(b => b.toString(16).padStart(2, "0")).join("");
+
+    // Insert User
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert([{
+        full_name: signupData.full_name,
+        email: signupData.email,
+        phone: signupData.phone,
+        aadhar: signupData.aadhar,
+        gender: signupData.gender,
+        dob: signupData.dob,
+        password_hash: hashHex
+      }])
+      .select()
+      .single();
+
+    if (userError) return alert("Signup failed: " + userError.message);
+
+    const userId = user.id;
+
+    // Generate Account Number
+    const accountNumber = "201" + Math.floor(1000000 + Math.random() * 9000000);
+
+    // Insert account with selected type
+    const { error: accError } = await supabase
+      .from("accounts")
+      .insert([{
+        id: userId,
+        account_number: accountNumber,
+        account_type: signupData.account_type,
+        balance: 0,
+        status: "Active"
+      }]);
+
+    if (accError) return alert("Account creation failed.");
+
+    // SHOW POPUP
+    document.getElementById("accNum").textContent = accountNumber;
+    const modal = new bootstrap.Modal(document.getElementById("successModal"));
+    modal.show();
+
+    document.getElementById("goLogin").onclick = () => {
+      localStorage.removeItem("signup_data");
+      window.location.href = "login.html";
+    };
+  });
+
+  resendBtn.addEventListener("click", () => {
+    otp = Math.floor(100000 + Math.random() * 900000).toString();
+    sendEmailOtp(signupData.email, otp);
+    otpInputs.forEach(i => i.value = "");
+    otpInputs[0].focus();
+    startTimer();
+  });
+
+</script>
+
+</body>
+</html>

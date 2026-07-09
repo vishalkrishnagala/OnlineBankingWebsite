@@ -1,0 +1,183 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Utility Payments – Paylum Bank</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+  body{background:url("../Images/BackgroundImageIndex.jpg") center/cover fixed;color:#fff;font-family:'Segoe UI',sans-serif;margin:0;}
+  .sidebar{position:fixed;top:0;left:-250px;width:250px;height:100%;background:rgba(0,0,0,.9);padding-top:60px;transition:left .25s;z-index:999}
+  .sidebar.show{left:0}
+  .sidebar a{display:block;padding:15px 25px;color:#ccc;text-decoration:none;font-weight:500}
+  .sidebar a:hover{background:#00e6e6;color:#000}
+  .menu-toggle{position:fixed;top:15px;left:15px;z-index:1000}
+  .menu-toggle img{width:40px}
+  .form-box{background:rgba(0,0,0,.85);padding:40px;border-radius:15px;box-shadow:0 0 15px #00e6e6;margin-top:120px}
+  footer{background:#000;text-align:center;padding:20px;color:#aaa;margin-top:100px}
+  </style>
+  </head>
+  <body>
+
+  <!-- MENU -->
+  <div class="menu-toggle">
+    <button id="menuBtn" class="btn btn-link p-0">
+      <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+    </button>
+  </div>
+
+  <div id="sidebar" class="sidebar">
+    <a href="../main.html"><i class="bi bi-house-door"></i> Home</a>
+    <a href="../main.html"><i class="bi bi-person-circle"></i> Account</a>
+    <a href="../main.html"><i class="bi bi-gear"></i> Features</a>
+    <a id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Logout</a>
+  </div>
+
+  <!-- FORM -->
+  <div class="container">
+    <div class="form-box">
+      <h2 class="text-info mb-4"><i class="bi bi-lightning"></i> Utility Bill Payment</h2>
+
+      <form id="billForm">
+
+        <div class="mb-3">
+          <label class="form-label">Service Type</label>
+          <select id="serviceType" class="form-select">
+            <option value="Electricity">Electricity</option>
+            <option value="Water">Water</option>
+            <option value="Gas">Gas</option>
+            <option value="Internet">Internet</option>
+            <option value="Mobile Recharge">Mobile Recharge</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Provider Name</label>
+          <input type="text" id="provider" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Consumer Number</label>
+          <input type="text" id="consumer" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Amount (₹)</label>
+          <input type="number" id="billAmt" class="form-control" min="1" required>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-lightning-fill"></i> Pay Now
+        </button>
+      </form>
+
+      <div id="billMsg" class="text-center mt-3 fw-bold"></div>
+    </div>
+  </div>
+
+  <footer>&copy; 2025 Paylum Bank</footer>
+
+  <!-- =============================== -->
+  <!-- ✅ DATABASE SCRIPT -->
+  <!-- =============================== -->
+  <script type="module">
+  import { supabase } from "../config/supabaseClient.js";
+
+  /* ================= AUTH ================= */
+  const email = localStorage.getItem("logged_in_email");
+  if (!email) {
+    alert("Unauthorized");
+    location.href = "../login.html";
+    throw new Error("Auth required");
+  }
+
+  /* ================= SIDEBAR ================= */
+  const sidebar=document.getElementById("sidebar");
+  const menu=document.getElementById("menuBtn");
+
+  menu.onclick=()=>sidebar.classList.toggle("show");
+  document.onclick=e=>{
+    if(!sidebar.contains(e.target)&&!menu.contains(e.target)){
+      sidebar.classList.remove("show");
+    }
+  };
+
+  document.getElementById("logoutBtn").onclick=()=>{
+    localStorage.clear();
+    location.href="../login.html";
+  };
+
+  /* ================= ACTIVE ACCOUNT ================= */
+  let activeAccount=null;
+
+  async function loadActiveAccount(){
+    const { data:user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email",email)
+      .single();
+
+    const uuid = localStorage.getItem("active_account_identifier");
+
+    const { data:acc } = await supabase
+      .from("accounts")
+      .select("*")
+      .eq("account_id", uuid)
+      .single();
+
+    activeAccount = acc;
+  }
+
+  await loadActiveAccount();
+
+  /* ================= UTILITY PAYMENT ================= */
+  const form=document.getElementById("billForm");
+  const msg=document.getElementById("billMsg");
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const service=document.getElementById("serviceType").value;
+    const provider=document.getElementById("provider").value.trim();
+    const consumer=document.getElementById("consumer").value.trim();
+    const amt=Number(document.getElementById("billAmt").value);
+
+    msg.style.color="red";
+    msg.textContent="";
+
+    if(amt<=0){
+      msg.textContent="Enter a valid amount.";
+      return;
+    }
+
+    if(amt > activeAccount.balance){
+      msg.textContent="Insufficient balance.";
+      return;
+    }
+
+    /* ✅ INSERT INTO utility_payments TABLE */
+    await supabase.from("utility_payments").insert({
+      account_id: activeAccount.account_id,
+      service_type: service,
+      provider_name: provider,
+      amount: amt
+    });
+
+    /* ✅ UPDATE BALANCE */
+    await supabase.from("accounts")
+      .update({ balance: activeAccount.balance - amt })
+      .eq("account_id", activeAccount.account_id);
+
+    msg.style.color="#00e6e6";
+    msg.textContent=`₹${amt.toFixed(2)} paid successfully to ${provider} (${service})`;
+
+    form.reset();
+    await loadActiveAccount();
+  });
+  </script>
+
+  </body>
+  </html>

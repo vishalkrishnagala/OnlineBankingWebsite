@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Application – Paylum Bank</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+body{
+  background:url("../Images/BackgroundImageIndex.jpg") center/cover fixed;
+  color:#fff;font-family:'Segoe UI',sans-serif;margin:0;
+}
+.sidebar{
+  position:fixed;top:0;left:-250px;width:250px;height:100%;
+  background:rgba(0,0,0,.9);padding-top:60px;
+  transition:left .25s;z-index:999
+}
+.sidebar.show{left:0}
+.sidebar a{
+  display:block;padding:15px 25px;color:#ccc;
+  text-decoration:none;font-weight:500
+}
+.sidebar a:hover{background:#00e6e6;color:#000}
+.menu-toggle{position:fixed;top:15px;left:15px;z-index:1000}
+.menu-toggle img{width:40px}
+
+.box{
+  background:rgba(0,0,0,.85);padding:40px;
+  border-radius:15px;box-shadow:0 0 15px #00e6e6;
+  margin-top:120px
+}
+
+.table-dark{
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(0,230,230,0.1);
+}
+
+footer{
+  background:#000;text-align:center;padding:20px;
+  color:#aaa;margin-top:100px
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= SIDEBAR ================= -->
+<div class="menu-toggle">
+  <button id="menuBtn" class="btn btn-link p-0">
+    <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+  </button>
+</div>
+
+<div id="sidebar" class="sidebar">
+  <a href="../main.html"><i class="bi bi-house-door"></i> Home</a>
+  <a href="../main.html"><i class="bi bi-person-circle"></i> Account</a>
+  <a href="../main.html"><i class="bi bi-gear"></i> Features</a>
+  <a id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Logout</a>
+</div>
+
+<!-- ================= CONTENT ================= -->
+<div class="container">
+ <div class="box">
+  <h2 class="text-info mb-4 text-center">
+    <i class="bi bi-search"></i> Track Your Applications
+  </h2>
+
+  <div class="table-responsive">
+    <table class="table table-dark table-hover text-center align-middle">
+      <thead>
+        <tr class="text-info">
+          <th>Application ID</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="appTable">
+        <tr>
+          <td colspan="5">Loading applications...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+ </div>
+</div>
+
+<footer>&copy; 2025 Paylum Bank</footer>
+
+<!-- ================= DATABASE SCRIPT ================= -->
+<script type="module">
+import { supabase } from "../config/supabaseClient.js";
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+/* ================= AUTH ================= */
+const email = localStorage.getItem("logged_in_email");
+if (!email) {
+  alert("Unauthorized");
+  window.location.href = "../login.html";
+  return;
+}
+
+/* ================= SIDEBAR ================= */
+const s = document.getElementById("sidebar");
+const m = document.getElementById("menuBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+m.onclick = () => s.classList.toggle("show");
+
+document.addEventListener("click", e => {
+  if (!s.contains(e.target) && !m.contains(e.target)) {
+    s.classList.remove("show");
+  }
+});
+
+logoutBtn.onclick = () => {
+  localStorage.clear();
+  window.location.href = "../login.html";
+};
+
+/* ================= USER LOOKUP ================= */
+const { data: user, error: userErr } = await supabase
+  .from("users")
+  .select("id")
+  .eq("email", email)
+  .single();
+
+if (userErr || !user) {
+  alert("User not found.");
+  window.location.href = "../login.html";
+  return;
+}
+
+/* ================= FETCH APPLICATIONS ================= */
+const { data: apps, error: appErr } = await supabase
+  .from("applications")
+  .select("*")
+  .eq("id", user.id)
+  .order("submitted_date", { ascending: false });
+
+const table = document.getElementById("appTable");
+
+table.innerHTML = "";
+
+if (appErr || !apps || apps.length === 0) {
+  table.innerHTML = `
+    <tr>
+      <td colspan="5" class="text-warning">
+        No applications found.
+      </td>
+    </tr>
+  `;
+  return;
+}
+
+/* ================= RENDER TABLE ================= */
+apps.forEach(app => {
+  const statusColor =
+    app.status === "Approved" ? "text-success"
+    : app.status === "Rejected" ? "text-danger"
+    : "text-warning";
+
+  const tr = document.createElement("tr");
+
+  tr.innerHTML = `
+    <td>${app.application_id.slice(0,8)}...</td>
+    <td>${app.type}</td>
+    <td>₹${Number(app.amount_requested || 0).toLocaleString()}</td>
+    <td class="${statusColor} fw-bold">${app.status}</td>
+    <td>${new Date(app.submitted_date).toLocaleDateString()}</td>
+  `;
+
+  table.appendChild(tr);
+});
+
+});
+</script>
+
+</body>
+</html>

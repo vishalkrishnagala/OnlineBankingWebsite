@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kiddy Spend – Paylum Bank</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+body{
+  background:url("../Images/BackgroundImageIndex.jpg") center/cover fixed;
+  color:#fff;
+  font-family:'Segoe UI',sans-serif;
+  margin:0;
+}
+
+.sidebar{
+  position:fixed;top:0;left:-260px;width:260px;height:100%;
+  background:rgba(0,0,0,.95);padding-top:60px;transition:.25s;z-index:999
+}
+
+.sidebar.show{left:0}
+.sidebar a{
+  display:block;padding:15px 25px;color:#ccc;
+  text-decoration:none;font-weight:500
+}
+.sidebar a:hover{background:#00e6e6;color:#000}
+
+.menu-toggle{position:fixed;top:15px;left:15px;z-index:1000}
+.menu-toggle img{width:40px}
+
+.box{
+  background:rgba(0,0,0,.85);
+  padding:30px;border-radius:15px;
+  box-shadow:0 0 15px #00e6e6;margin-top:100px
+}
+
+footer{background:#000;text-align:center;padding:20px;color:#aaa;margin-top:100px}
+
+.card-box{
+  background:#111;border-radius:12px;padding:20px;
+  box-shadow:0 0 10px #00e6e6;text-align:center
+}
+
+input,select{background:#000!important;color:white!important}
+</style>
+</head>
+
+<body>
+
+<!-- 🍔 HAMBURGER -->
+<div class="menu-toggle">
+  <button id="menuBtn" class="btn btn-link p-0">
+    <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+  </button>
+</div>
+
+<!-- 📱 SIDEBAR -->
+<div id="sidebar" class="sidebar">
+  <a href="#">👶 My Wallet</a>
+  <a id="logoutBtn">🚪 Logout</a>
+</div>
+
+<div class="container">
+
+  <!-- ✅ WALLET HEADER -->
+  <div class="box text-center">
+    <h3 class="text-info">👶 Kiddy Wallet</h3>
+    <h1 id="balance">₹0</h1>
+    <p id="limitText">Monthly Limit: ₹0</p>
+  </div>
+
+  <!-- ✅ SPEND OPTIONS -->
+  <div class="row g-4 mt-3">
+
+    <!-- 📱 Recharge -->
+    <div class="col-md-4">
+      <div class="card-box">
+        <h5>📱 Mobile Recharge</h5>
+        <input id="rechAmt" class="form-control mb-2" type="number" placeholder="Amount">
+        <button class="btn btn-success w-100" onclick="spend('Recharge')">Pay</button>
+      </div>
+    </div>
+
+    <!-- ⚡ Utility -->
+    <div class="col-md-4">
+      <div class="card-box">
+        <h5>⚡ Utility Payment</h5>
+        <input id="utilAmt" class="form-control mb-2" type="number" placeholder="Amount">
+        <button class="btn btn-warning w-100" onclick="spend('Utility')">Pay</button>
+      </div>
+    </div>
+
+    <!-- 🎮 Games -->
+    <div class="col-md-4">
+      <div class="card-box">
+        <h5>🎮 Games</h5>
+        <input id="gameAmt" class="form-control mb-2" type="number" placeholder="Amount">
+        <button class="btn btn-info w-100" onclick="spend('Games')">Spend</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ✅ TRANSACTIONS -->
+  <div class="box mt-4">
+    <h4 class="text-info">📜 Spending History</h4>
+    <div id="history"></div>
+  </div>
+
+</div>
+
+<footer>&copy; 2025 Paylum Bank</footer>
+
+<!-- ================= SUPABASE ================= -->
+<script type="module">
+import { supabase } from "../config/supabaseClient.js";
+
+/* ================= AUTH ================= */
+const WALLET_ID = localStorage.getItem("kiddy_wallet_id");
+if(!WALLET_ID){
+  alert("Unauthorized Child Access");
+  location.href="../kid-login.html";
+}
+
+/* ================= SIDEBAR ================= */
+const s=document.getElementById("sidebar");
+const m=document.getElementById("menuBtn");
+m.onclick=()=>s.classList.toggle("show");
+document.onclick=e=>{
+  if(!s.contains(e.target)&&!m.contains(e.target)){
+    s.classList.remove("show");
+  }
+};
+
+/* ================= LOGOUT ================= */
+document.getElementById("logoutBtn").onclick=()=>{
+  localStorage.removeItem("kiddy_wallet_id");
+  location.href="../index.html";
+};
+
+/* ================= DOM ================= */
+const balBox = document.getElementById("balance");
+const limitBox = document.getElementById("limitText");
+const history = document.getElementById("history");
+
+let WALLET = null;
+let SPENT_THIS_MONTH = 0;
+
+/* ================= LOAD WALLET ================= */
+async function loadWallet(){
+
+  const { data } = await supabase
+    .from("kiddy_wallets")
+    .select("*")
+    .eq("wallet_id", WALLET_ID)
+    .single();
+
+  WALLET = data;
+  balBox.textContent = "₹" + Number(data.balance).toLocaleString();
+  limitBox.textContent = "Monthly Limit: ₹" + data.monthly_limit;
+
+  loadHistory();
+  calculateMonthlySpend();
+}
+
+loadWallet();
+
+/* ================= LOAD TXN HISTORY ================= */
+async function loadHistory(){
+
+  const { data } = await supabase
+    .from("kiddy_transactions")
+    .select("*")
+    .eq("wallet_id", WALLET_ID)
+    .order("txn_date", { ascending:false })
+    .limit(10);
+
+  if(!data || data.length === 0){
+    history.innerHTML = "<span style='color:white'>No transactions yet.</span>";
+    return;
+  }
+
+  history.innerHTML = data.map(tx=>`
+    <div class="border-bottom py-1">
+      ₹${tx.amount} - ${tx.type} <br>
+      <small>${new Date(tx.txn_date).toLocaleString()}</small>
+    </div>
+  `).join("");
+}
+
+/* ================= MONTHLY SPEND ================= */
+async function calculateMonthlySpend(){
+
+  const start = new Date();
+  start.setDate(1);
+
+  const { data } = await supabase
+    .from("kiddy_transactions")
+    .select("amount")
+    .eq("wallet_id", WALLET_ID)
+    .gte("txn_date", start.toISOString());
+
+  SPENT_THIS_MONTH = data.reduce((s,x)=>s+Number(x.amount),0);
+}
+
+/* ================= SPEND ================= */
+window.spend = async function(type){
+
+  let amount =
+    type==="Recharge" ? rechAmt.value :
+    type==="Utility" ? utilAmt.value :
+    gameAmt.value;
+
+  amount = Number(amount);
+
+  if(amount<=0) return alert("Enter valid amount");
+
+  if(amount > WALLET.balance){
+    alert("Insufficient balance");
+    return;
+  }
+
+  if(SPENT_THIS_MONTH + amount > WALLET.monthly_limit){
+    alert("Monthly spending limit exceeded!");
+    return;
+  }
+
+  /* ✅ Insert Child Transaction */
+  await supabase.from("kiddy_transactions").insert({
+    wallet_id: WALLET_ID,
+    type:type,
+    amount:amount,
+    description:`${type} Payment`
+  });
+
+  /* ✅ Update Child Balance */
+  const newChildBalance = WALLET.balance - amount;
+
+  await supabase.from("kiddy_wallets").update({
+    balance:newChildBalance
+  }).eq("wallet_id",WALLET_ID);
+
+  /* ✅ Deduct From Parent Main Account */
+  const { data: parentAcc } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("id", WALLET.parent_user_id)
+    .limit(1)
+    .single();
+
+  if(parentAcc){
+    await supabase.from("accounts").update({
+      balance: parentAcc.balance - amount
+    }).eq("account_id", parentAcc.account_id);
+  }
+
+  alert("✅ Payment Successful!");
+  loadWallet();
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Parent Monitoring – Paylum Bank</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+body{
+  background:url("../Images/BackgroundImageIndex.jpg") center/cover fixed;
+  color:#fff;font-family:'Segoe UI',sans-serif;margin:0;
+}
+.sidebar{
+  position:fixed;top:0;left:-260px;width:260px;height:100%;
+  background:rgba(0,0,0,.95);padding-top:60px;transition:.25s;z-index:999
+}
+.sidebar.show{left:0}
+.sidebar a{display:block;padding:15px 25px;color:#ccc;text-decoration:none;font-weight:500}
+.sidebar a:hover{background:#00e6e6;color:#000}
+
+.menu-toggle{position:fixed;top:15px;left:15px;z-index:1000}
+.menu-toggle img{width:40px}
+
+.box{
+  background:rgba(0,0,0,.85);
+  padding:30px;border-radius:15px;
+  box-shadow:0 0 15px #00e6e6;margin-top:100px
+}
+
+.child-card{
+  background:#111;border-radius:12px;padding:20px;
+  box-shadow:0 0 10px #00e6e6
+}
+
+footer{background:#000;text-align:center;padding:20px;color:#aaa;margin-top:100px}
+input{background:#000!important;color:white!important}
+</style>
+</head>
+
+<body>
+
+<!-- 🍔 HAMBURGER -->
+<div class="menu-toggle">
+  <button id="menuBtn" class="btn btn-link p-0">
+    <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+  </button>
+</div>
+
+<!-- 📱 SIDEBAR -->
+<div id="sidebar" class="sidebar">
+  <a href="../main.html">🏠 Dashboard</a>
+  <a id="logoutBtn">🚪 Logout</a>
+</div>
+
+<div class="container">
+
+  <div class="box text-center">
+    <h3 class="text-info">👨‍👩‍👧 Parent Monitoring</h3>
+    <p id="parentEmail"></p>
+  </div>
+
+  <!-- ✅ CHILD WALLETS -->
+  <div id="childrenRow" class="row g-4 mt-3"></div>
+
+</div>
+
+<footer>&copy; 2025 Paylum Bank</footer>
+
+<!-- ================= SUPABASE ================= -->
+<script type="module">
+import { supabase } from "../config/supabaseClient.js";
+
+/* ================= AUTH ================= */
+const email = localStorage.getItem("logged_in_email");
+if(!email){
+  alert("Unauthorized");
+  location.href="../login.html";
+}
+
+/* ================= SIDEBAR ================= */
+const s=document.getElementById("sidebar");
+const m=document.getElementById("menuBtn");
+m.onclick=()=>s.classList.toggle("show");
+document.onclick=e=>{
+  if(!s.contains(e.target)&&!m.contains(e.target)){
+    s.classList.remove("show");
+  }
+};
+
+/* ================= LOGOUT ================= */
+document.getElementById("logoutBtn").onclick=()=>{
+  localStorage.clear();
+  location.href="../login.html";
+};
+
+document.getElementById("parentEmail").textContent = email;
+
+/* ================= LOAD USER ================= */
+async function loadParent(){
+
+  const { data:user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email",email)
+    .single();
+
+  if(!user){
+    alert("User not found");
+    return;
+  }
+
+  loadChildren(user.id);
+}
+
+/* ================= LOAD CHILD WALLETS ================= */
+async function loadChildren(parentId){
+
+  const row = document.getElementById("childrenRow");
+
+  const { data:wallets } = await supabase
+    .from("kiddy_wallets")
+    .select("*")
+    .eq("parent_user_id",parentId);
+
+  if(!wallets || wallets.length===0){
+    row.innerHTML = "<p class='text-center text-warning'>No Kiddy accounts found.</p>";
+    return;
+  }
+
+  row.innerHTML = "";
+
+  for(const w of wallets){
+
+    const spent = await getMonthlySpend(w.wallet_id);
+
+    const col = document.createElement("div");
+    col.className="col-md-6";
+
+    col.innerHTML = `
+      <div class="child-card">
+        <h5>👧 ${w.child_name}</h5>
+        <p>Email: ${w.child_email || "-"}</p>
+        <p>Phone: ${w.child_phone || "-"}</p>
+
+        <p class="text-success">Balance: ₹${Number(w.balance).toLocaleString()}</p>
+        <p class="text-info">Monthly Limit: ₹${Number(w.monthly_limit).toLocaleString()}</p>
+        <p class="text-warning">Spent This Month: ₹${spent.toLocaleString()}</p>
+
+        <div class="input-group mt-2">
+          <input class="form-control" id="limit_${w.wallet_id}" type="number" placeholder="New Limit">
+          <button class="btn btn-warning" onclick="updateLimit('${w.wallet_id}')">
+            Update
+          </button>
+        </div>
+
+        <button class="btn btn-outline-info btn-sm mt-2" onclick="viewHistory('${w.wallet_id}')">
+          View Transactions
+        </button>
+
+        <div id="history_${w.wallet_id}" class="mt-2"></div>
+      </div>
+    `;
+
+    row.appendChild(col);
+  }
+}
+
+/* ================= MONTHLY SPEND ================= */
+async function getMonthlySpend(walletId){
+  const start = new Date(); start.setDate(1);
+
+  const { data } = await supabase
+    .from("kiddy_transactions")
+    .select("amount")
+    .eq("wallet_id",walletId)
+    .gte("txn_date",start.toISOString());
+
+  return data.reduce((s,x)=>s+Number(x.amount),0);
+}
+
+/* ================= UPDATE LIMIT ================= */
+window.updateLimit = async function(walletId){
+  const val = document.getElementById("limit_"+walletId).value;
+  if(val<=0) return alert("Invalid limit");
+
+  await supabase
+    .from("kiddy_wallets")
+    .update({ monthly_limit: val })
+    .eq("wallet_id",walletId);
+
+  alert("✅ Limit updated");
+  loadParent();
+}
+
+/* ================= VIEW HISTORY ================= */
+window.viewHistory = async function(walletId){
+
+  const box = document.getElementById("history_"+walletId);
+
+  const { data } = await supabase
+    .from("kiddy_transactions")
+    .select("*")
+    .eq("wallet_id",walletId)
+    .order("txn_date",{ascending:false})
+    .limit(10);
+
+  if(!data || data.length===0){
+    box.innerHTML="<span style='color:white'>No transactions</span>";
+    return;
+  }
+
+  box.innerHTML = data.map(t=>`
+    <div class="border-bottom py-1">
+      ₹${t.amount} - ${t.type}<br>
+      <small>${new Date(t.txn_date).toLocaleString()}</small>
+    </div>
+  `).join("");
+}
+
+/* ================= INIT ================= */
+loadParent();
+</script>
+
+</body>
+</html>

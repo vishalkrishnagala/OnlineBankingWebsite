@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Accounts - Paylum Bank</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: url("../Images/BackgroundImageIndex.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+    }
+
+    /* ---------- SIDEBAR ---------- */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -260px;
+      width: 260px;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      padding-top: 20px;
+      transition: left 0.25s ease;
+      z-index: 999;
+    }
+
+    .sidebar.show { left: 0; }
+
+    .sidebar-header {
+      padding: 0 25px 25px;
+      font-size: 26px;
+      color: white;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 25px;
+      color: #ccc;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .sidebar-link i { font-size: 18px; }
+
+    .sidebar-link:hover,
+    .sidebar-link.active {
+      background: #00e6e6;
+      color: black;
+    }
+
+    .submenu-toggle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 25px;
+      color: #ccc;
+      cursor: pointer;
+    }
+
+    .submenu {
+      display: none;
+      padding-left: 45px;
+    }
+
+    .submenu-item {
+      padding: 10px 0;
+      font-size: 14px;
+      color: #ccc;
+      cursor: pointer;
+    }
+
+    .submenu-item:hover { color: #00e6e6; }
+
+    .submenu-arrow {
+      margin-left: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .submenu-open .submenu-arrow {
+      transform: rotate(180deg);
+    }
+
+    .logout-section {
+      position: absolute;
+      bottom: 25px;
+      width: 100%;
+      padding: 0 25px;
+    }
+
+    .logout-link {
+      color: #ff4d4d;
+      font-weight: 600;
+    }
+
+    .logout-link:hover {
+      background: #ff4d4d;
+      color: black;
+    }
+
+    /* ---------- PAGE CONTENT ---------- */
+    .menu-toggle {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1000;
+    }
+
+    .menu-toggle img { width: 40px; }
+
+    .content-box {
+      background: rgba(0,0,0,0.85);
+      padding: 35px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px #00e6e6;
+      margin-top: 110px;
+    }
+
+    table { color: white; }
+
+    .active-badge {
+      background: #00e6e6;
+      color: black;
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    footer {
+      background: #000;
+      text-align: center;
+      padding: 20px;
+      color: #aaa;
+      margin-top: 100px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ===== HAMBURGER ===== -->
+<div class="menu-toggle">
+  <button id="menuBtn" class="btn btn-link p-0">
+    <img src="../Images/transparent-hd-white-menu-burger-icon-701751695037039ulxnzxwywi.png">
+  </button>
+</div>
+
+<!-- ===== SIDEBAR ===== -->
+<div id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <i class="bi bi-list"></i>
+  </div>
+
+  <a href="../main.html" class="sidebar-link">
+    <i class="bi bi-house"></i> Home
+  </a>
+
+  <a href="../main.html#account-section" class="sidebar-link">
+    <i class="bi bi-person"></i> Account
+  </a>
+
+  <!-- ACTIVE PAGE HIGHLIGHT -->
+  <a class="sidebar-link active">
+    <i class="bi bi-wallet2"></i> Manage Accounts
+  </a>
+
+  <div class="sidebar-link submenu-toggle">
+    <i class="bi bi-gear"></i> Features
+    <i class="bi bi-chevron-down submenu-arrow"></i>
+  </div>
+
+  <div class="submenu">
+    <div class="submenu-item">Internal Transfer</div>
+    <div class="submenu-item">External Transfer</div>
+    <div class="submenu-item">Utility Payments</div>
+  </div>
+
+  <div class="logout-section">
+    <a id="logoutBtn" class="sidebar-link logout-link">
+      <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+  </div>
+</div>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="container">
+  <div class="content-box">
+    <h3 class="text-info mb-4">
+      <i class="bi bi-wallet2"></i> Manage Connected Accounts
+    </h3>
+
+    <table class="table table-dark table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Account Type</th>
+          <th>Account Number</th>
+          <th>Balance</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="accountsTable"></tbody>
+    </table>
+
+    <!-- ACTION BUTTONS -->
+    <div class="d-flex justify-content-center gap-3 mt-4">
+      <button id="addAccountBtn" class="btn btn-success">➕ Add Existing</button>
+      <button id="createAccountBtn" class="btn btn-info">🆕 Create Account</button>
+      <button id="deleteAccountBtn" class="btn btn-danger">🗑 Delete</button>
+    </div>
+  </div>
+</div>
+
+<footer>© 2025 Paylum Bank</footer>
+
+<!-- ===== SCRIPT ===== -->
+<script type="module">
+import { supabase } from "../config/supabaseClient.js";
+
+/* ---------- AUTH ---------- */
+const email = localStorage.getItem("logged_in_email");
+let activeAccNo = localStorage.getItem("active_account_number");
+
+if (!email) {
+  alert("Session expired!");
+  window.location.href = "../login.html";
+}
+
+/* ---------- SIDEBAR ---------- */
+const sidebar = document.getElementById("sidebar");
+const menuBtn = document.getElementById("menuBtn");
+
+menuBtn.onclick = () => sidebar.classList.toggle("show");
+
+document.addEventListener("click", e => {
+  if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+    sidebar.classList.remove("show");
+  }
+});
+
+/* ---------- MASKING ---------- */
+const maskAcc = n => "XXXX XXXX " + n.slice(-4);
+const maskBal = () => "₹ ****";
+
+/* ---------- LOAD ACCOUNTS ---------- */
+async function loadAccounts() {
+
+  const { data: user, error: userErr } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (userErr || !user) {
+    alert("User not found");
+    return;
+  }
+
+  const { data: accounts, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("id", user.id);
+
+  if (error) {
+    console.error(error);
+    return alert("Failed to load accounts");
+  }
+
+  const table = document.getElementById("accountsTable");
+  table.innerHTML = "";
+
+  accounts.forEach(acc => {
+    const isActive = acc.account_number === activeAccNo;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${acc.account_type}</td>
+      <td>${isActive ? acc.account_number : maskAcc(acc.account_number)}</td>
+      <td>${isActive ? "₹ " + Number(acc.balance).toLocaleString("en-IN") : maskBal()}</td>
+      <td>${isActive ? '<span class="active-badge">ACTIVE</span>' : acc.status}</td>
+    `;
+    table.appendChild(row);
+  });
+}
+
+loadAccounts();
+
+/* ---------- CREATE ACCOUNT ---------- */
+document.getElementById("createAccountBtn").onclick = async () => {
+
+  const type = prompt("Enter Account Type (Savings / Current / Loan)");
+  if (!type) return;
+
+  const cleanType = type.trim();
+
+  if (!["Savings", "Current", "Loan"].includes(cleanType)) {
+    return alert("Invalid Account Type!");
+  }
+
+  const accNo = "201" + Math.floor(100000000 + Math.random() * 900000000);
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  const { error } = await supabase.from("accounts").insert([{
+    id: user.id,
+    account_type: cleanType,
+    account_number: accNo,
+    balance: 0,
+    status: "Active"
+  }]);
+
+  if (error) {
+    console.error(error);
+    return alert("Account creation failed");
+  }
+
+  alert("✅ Account Created Successfully!");
+  loadAccounts();
+};
+
+/* ---------- ADD EXISTING ACCOUNT ---------- */
+document.getElementById("addAccountBtn").onclick = async () => {
+
+  const accNo = prompt("Enter Account Number to Link:");
+  if (!accNo) return;
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("account_number", accNo)
+    .single();
+
+  if (!data || error) return alert("Account not found");
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (data.id === user.id) {
+    return alert("This account is already linked to you.");
+  }
+
+  const { error: linkErr } = await supabase
+    .from("accounts")
+    .update({ id: user.id })
+    .eq("account_number", accNo);
+
+  if (linkErr) {
+    console.error(linkErr);
+    return alert("Linking failed");
+  }
+
+  alert("✅ Account Linked Successfully");
+  loadAccounts();
+};
+
+/* ---------- DELETE ACCOUNT ---------- */
+document.getElementById("deleteAccountBtn").onclick = async () => {
+
+  const accNo = prompt("Enter Account Number to Delete:");
+  if (!accNo) return;
+
+  if (!confirm("Are you sure you want to delete this account?")) return;
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  const { error } = await supabase
+    .from("accounts")
+    .delete()
+    .eq("account_number", accNo)
+    .eq("id", user.id);
+
+  if (error) {
+    console.error(error);
+    return alert("Delete failed");
+  }
+
+  if (activeAccNo === accNo) {
+    localStorage.removeItem("active_account_number");
+    activeAccNo = null;
+  }
+
+  alert("✅ Account Deleted Successfully");
+  loadAccounts();
+};
+
+/* ---------- LOGOUT ---------- */
+document.getElementById("logoutBtn").onclick = () => {
+  localStorage.clear();
+  window.location.href = "../login.html";
+};
+
+/* ---------- FEATURES TOGGLE ---------- */
+const toggle = document.querySelector(".submenu-toggle");
+const submenu = document.querySelector(".submenu");
+
+toggle.onclick = () => {
+  submenu.style.display =
+    submenu.style.display === "block" ? "none" : "block";
+  toggle.classList.toggle("submenu-open");
+};
+</script>
+
+
+
+</body>
+</html>

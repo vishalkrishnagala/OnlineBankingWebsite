@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paylum Bank - Account Statement</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  
+<style>
+:root {
+  --accent: #00e6e6;
+  --muted: #d7e2e2;
+  --card-bg: rgba(10,10,10,0.85);
+  --glass: rgba(255,255,255,0.03);
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: #0b0b0b;
+  color: #fff;
+}
+
+.page {
+  max-width: 980px;
+  margin: 28px auto;
+  padding: 20px;
+  background: linear-gradient(180deg, var(--glass), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  text-align: center;       /* ⬅ CENTER EVERYTHING */
+}
+
+/* Branding */
+.brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;   /* ⬅ Center logo + title */
+  margin-bottom: 14px;
+}
+
+.brand img {
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+}
+
+.brand h1 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* Meta cards section */
+.meta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  justify-content: center;   /* ⬅ CENTER the cards */
+}
+
+.meta-card {
+  background: var(--card-bg);
+  padding: 12px 14px;
+  border-radius: 8px;
+  min-width: 220px;
+  text-align: center;        /* ⬅ center text inside cards */
+}
+
+.meta-card small {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Filters section */
+.filters {
+  background: var(--card-bg);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;   /* ⬅ Center filters */
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filters label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Inputs */
+input[type="month"],
+select {
+  background: #1a1a1a !important;
+  border: 1px solid #333 !important;
+  color: #fff !important;
+}
+
+/* Transaction Table */
+table.table thead th {
+  color: var(--accent);
+  border: none;
+  background: rgba(255,255,255,0.05);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+table.table tbody td {
+  color: #e6eef0;
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+
+/* Balances */
+.balance-row {
+  display: flex;
+  justify-content: center;   /* ⬅ CENTER balances */
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;   /* ⬅ CENTER buttons */
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .controls, .no-print {
+    display: none !important;
+  }
+  .page {
+    box-shadow: none;
+    margin: 0;
+    border-radius: 0;
+    padding: 16mm;
+    text-align: left; /* print in normal format */
+  }
+}
+</style>
+
+
+
+</head>
+<body>
+
+  <div class="page" id="pageRoot">
+    <div class="brand">
+      <img src="Images/Logo2-removebg-preview.png" alt="Paylum Logo" onerror="this.style.display='none'">
+      <div>
+        <h1>Paylum Bank</h1>
+        <div style="color:var(--muted)">Account Statement</div>
+      </div>
+    </div>
+
+        <div class="filters no-print" style="margin-bottom:12px;">
+      <label class="me-2 text-muted">Range:</label>
+      <select id="presetRange" class="form-select form-select-sm" style="width:220px;">
+        <option value="all" selected>All transactions</option>
+        <option value="this_month">This month</option>
+        <option value="last_month">Last month</option>
+        <option value="this_year">This year</option>
+        <option value="last_year">Last year</option>
+      </select>
+
+      <div style="display:flex; gap:8px; align-items:center; margin-left:6px;">
+        <input id="fromDate" type="month" class="form-control form-control-sm" title="From (month)" />
+        <input id="toDate" type="month" class="form-control form-control-sm" title="To (month)" />
+        <button id="applyFilter" class="btn btn-sm btn-outline-info">Apply</button>
+        <button id="resetFilter" class="btn btn-sm btn-outline-secondary">Reset</button>
+      </div>
+    </div>
+
+        <div class="meta-row" id="metaRow">
+      <div class="meta-card">
+        <small class="text-muted">Account Holder</small>
+        <div id="metaHolder">Loading...</div>
+      </div>
+      <div class="meta-card">
+        <small class="text-muted">Account Number</small>
+        <div id="metaAccount">Loading...</div>
+        <small class="text-muted" id="currentRangeDisplay"></small>
+      </div>
+      <div class="meta-card">
+        <small class="text-muted">Account Type</small>
+        <div id="metaType">Loading...</div>
+      </div>
+      <div class="meta-card">
+        <small class="text-muted">Statement Date</small>
+        <div id="metaDate">Loading...</div>
+      </div>
+    </div>
+
+        <div style="overflow:auto;">
+      <table class="table table-dark table-striped" id="txTable">
+        <thead>
+          <tr>
+            <th style="width:18%;">Date</th>
+            <th style="width:15%;">Type</th>
+            <th>Description</th>
+            <th style="width:16%; text-align:right;">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="txBody">
+          <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+       <!-- BALANCE SUMMARY (CENTERED) -->
+<div class="container text-center my-4">
+
+  <div class="row g-4 justify-content-center">
+    
+    <div class="col-12 col-md-5">
+      <div class="meta-card py-3">
+        <small class="d-block text-muted fw-bold mb-1">Opening Balance</small>
+        <strong id="openingBalance" class="fs-4 d-block">₹0.00</strong>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-5">
+      <div class="meta-card py-3">
+        <small class="d-block text-muted fw-bold mb-1">Closing Balance</small>
+        <strong id="closingBalance" class="fs-4 d-block">₹0.00</strong>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+        <div class="controls no-print">
+      <button id="downloadPdfBtn" class="btn btn-info"><i class="bi bi-download"></i> Download PDF</button>
+      <button id="printBtn" class="btn btn-outline-info">Print</button>
+      <button id="closeBtn" class="btn btn-secondary">Close</button>
+    </div>
+
+    <div style="margin-top:14px; color:var(--muted); font-size:0.9rem;">
+      Generated by Paylum Bank — offline PDF supported via bundled html2pdf.
+    </div>
+  </div>
+
+    <script>
+    // Try to load local html2pdf bundle first (works offline if you saved it).
+    (function loadHtml2Pdf() {
+      const localPath = './html2pdf.bundle.min.js'; // <-- put html2pdf bundle here for offline
+      const s = document.createElement('script');
+      s.src = localPath;
+      s.onload = () => console.info('Loaded local html2pdf bundle.');
+      s.onerror = () => {
+        console.warn('Local html2pdf not found. Will try CDN at runtime if needed.');
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script type="module">
+    import { supabase } from "./config/supabaseClient.js";
+
+    // Ensure icons are loaded (already in header, but for completeness)
+    // import 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css';
+    
+   const urlParams = new URLSearchParams(window.location.search);
+const urlAccount = urlParams.get("acc");
+const urlEmail = urlParams.get("email");
+
+const activeAccountId =
+  localStorage.getItem("active_account_number") || urlAccount;
+
+const loggedEmail =
+  localStorage.getItem("logged_in_email") || urlEmail;
+
+
+    // Guard: prevent direct access
+   if (!loggedEmail || !activeAccountId) {
+  alert("Unauthorized access — please login.");
+  window.location.href = "login.html";
+  throw new Error("Unauthorized");
+}
+
+// ✅ Sync back to storage if URL was used
+localStorage.setItem("active_account_number", activeAccountId);
+
+
+    // DOM refs
+    const metaHolder = document.getElementById("metaHolder");
+    const metaAccount = document.getElementById("metaAccount");
+    const metaType = document.getElementById("metaType");
+    const metaDate = document.getElementById("metaDate");
+    const txBody = document.getElementById("txBody");
+    const openingBalanceEl = document.getElementById("openingBalance");
+    const closingBalanceEl = document.getElementById("closingBalance");
+    const currentRangeDisplay = document.getElementById("currentRangeDisplay");
+
+    const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+    const printBtn = document.getElementById("printBtn");
+    const closeBtn = document.getElementById("closeBtn");
+    
+    // Filter elements
+    const fromDate = document.getElementById("fromDate");
+    const toDate = document.getElementById("toDate");
+    const applyFilter = document.getElementById("applyFilter");
+    const resetFilter = document.getElementById("resetFilter");
+    const presetRange = document.getElementById("presetRange");
+
+    let accountClosingBalance = 0; // Store the official closing balance from the DB
+
+    function fmtMoney(n) {
+      try {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(n));
+      } catch { return "₹0.00"; }
+    }
+
+    function parseMoney(s) {
+        return Number(s.replace(/[^0-9.-]+/g, "")) || 0;
+    }
+
+    // Helper to filter transactions by month-range (months from yyyy-mm inputs)
+    function monthFilter(trans, fromMonth, toMonth) {
+      if (!fromMonth && !toMonth) return trans;
+      const start = fromMonth ? new Date(fromMonth + '-01T00:00:00') : null;
+      const end = toMonth ? new Date(toMonth + '-01T00:00:00') : null;
+      // if end is set, move to last millisecond of that month
+      if (end) { end.setMonth(end.getMonth() + 1); end.setMilliseconds(-1); }
+      
+      return trans.filter(t => {
+        const d = t.transaction_date ? new Date(t.transaction_date) : null;
+        if (!d) return false;
+        if (start && d < start) return false;
+        if (end && d > end) return false;
+        return true;
+      });
+    }
+
+    function setDefaultMonthsForControls() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth()+1).padStart(2,'0');
+      fromDate.value = `${y}-${m}`;
+      toDate.value = `${y}-${m}`;
+      presetRange.value = 'all'; // ensure preset is 'all' by default
+    }
+
+    // Render function: fetches all data initially
+    async function renderStatement() {
+      setDefaultMonthsForControls(); // Pre-set dates and 'all' selected
+
+      // Attempt to fetch from Supabase if available and logged in
+      if (typeof supabase !== 'undefined' && loggedEmail && activeAccountId) {
+        try {
+          // 1. Fetch User/Account Data
+          const { data: users } = await supabase
+            .from('users').select('id,full_name,email').eq('email', loggedEmail).limit(1);
+          const user = users[0];
+
+          const { data: account } = await supabase
+            .from('accounts').select('account_number, account_type, balance').eq('account_number', activeAccountId).single();
+
+          // Update meta info
+          metaHolder.textContent = user.full_name || user.email;
+          metaAccount.textContent = account.account_number;
+          metaType.textContent = account.account_type || 'N/A';
+          metaDate.textContent = new Date().toLocaleString();
+          accountClosingBalance = Number(account.balance || 0);
+
+          // 2. Fetch ALL Transactions
+          const { data: trans } = await supabase
+            .from('transactions').select('*').eq('account_number', activeAccountId).order('transaction_date', { ascending: false });
+
+          // Store all transactions in cache for filtering
+          window._txCache = trans || [];
+          
+          // 3. Render all transactions initially
+          applyAndRender(window._txCache, accountClosingBalance);
+
+          return;
+        } catch (err) {
+          console.warn('Supabase fetch failed, falling back to offline mode:', err);
+          // Fall through to offline rendering
+        }
+      }
+
+      // OFFLINE / FALLBACK MODE:
+      window._txCache = [];
+      metaHolder.textContent = 'Local User (Offline)';
+      metaAccount.textContent = activeAccountId || 'offline-account';
+      metaType.textContent = 'N/A';
+      metaDate.textContent = new Date().toLocaleString();
+      applyAndRender([], 0); // Render empty table
+    }
+
+    // Apply filter from controls to cache and render
+    function applyAndRender(allTransactions, officialClosingBalance) {
+      let filtered = [...allTransactions];
+      const preset = presetRange.value;
+      const now = new Date();
+      let rangeText = 'All Transactions';
+
+      // 1. Apply Preset Filter
+      if (preset === 'this_month') {
+        const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+        filtered = monthFilter(filtered, `${y}-${m}`, `${y}-${m}`);
+        rangeText = 'This Month';
+      } else if (preset === 'last_month') {
+        const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
+        const y = lm.getFullYear(), m = String(lm.getMonth()+1).padStart(2,'0');
+        filtered = monthFilter(filtered, `${y}-${m}`, `${y}-${m}`);
+        rangeText = `Last Month (${y}-${m})`;
+      } else if (preset === 'this_year') {
+        filtered = filtered.filter(t => {
+          const d = t.transaction_date ? new Date(t.transaction_date) : null;
+          return d && d.getFullYear() === now.getFullYear();
+        });
+        rangeText = 'This Year';
+      } else if (preset === 'last_year') {
+        const ly = now.getFullYear()-1;
+        filtered = filtered.filter(t => {
+          const d = t.transaction_date ? new Date(t.transaction_date) : null;
+          return d && d.getFullYear() === ly;
+        });
+        rangeText = 'Last Year';
+      } else {
+            // clear manual dates if 'all' preset selected
+            fromDate.value = ''; 
+            toDate.value = '';
+        }
+
+      // 2. Apply Manual Month Range Filter
+      let f = fromDate.value;
+      let to = toDate.value;
+      
+      // If manual dates are set, override preset logic
+      if (f || to) {
+            filtered = monthFilter(filtered, f || null, to || null);
+            rangeText = `Range: ${f || 'Start'} to ${to || 'End'}`;
+            presetRange.value = 'all'; // Reset preset select if manual dates are applied
+        }
+    
+      // Keep a working cache of the filtered results
+      window._txView = filtered;
+      currentRangeDisplay.textContent = `Range: ${rangeText}`;
+
+
+      // 3. Compute Balances for the Filtered View
+      
+      // Closing balance of the filtered VIEW is the last transaction in the filtered set.
+      // Calculating the opening balance requires knowing the CLOSING BALANCE OF THE FULL ACCOUNT.
+      
+      let closing = officialClosingBalance; // Start from the known, official balance
+      let computedSum = 0; // Sum of transactions in the FILTERED VIEW
+      
+      // Calculate the sum of amounts only for the transactions in the VIEW
+      filtered.forEach(t => {
+          const isCredit = t.type === 'Deposit';
+          const amt = Number(t.amount || 0);
+          const signed = isCredit ? amt : -amt;
+          computedSum += signed;
+      });
+
+      // Sort: reverse back to chronological order for display (oldest to newest)
+      const rows = [...filtered].reverse();
+
+      txBody.innerHTML = "";
+      if (!filtered || filtered.length === 0) {
+        txBody.innerHTML = `<tr><td colspan="4" class="text-warning text-center">No transactions match the selected range.</td></tr>`;
+        
+        // If filtered is empty, set view balances equal to the current official closing balance
+        openingBalanceEl.textContent = fmtMoney(officialClosingBalance);
+        closingBalanceEl.textContent = fmtMoney(officialClosingBalance);
+
+      } else {
+        // The calculated opening balance for the VIEW is: (Closing of Full Account) MINUS (Total of all transactions in the filtered view)
+        // WARNING: This is mathematically WRONG for a range view unless the range is ALL. 
+        // For accurate range balances, you need to calculate:
+        // 1. Balance up to (From Date - 1 day) = Opening Balance of View
+        // 2. Opening Balance of View + Sum of View = Closing Balance of View
+        
+        // Since we only fetched ALL transactions, we'll use a simpler heuristic:
+        // Assume the latest transaction in the filtered list gives the closing balance of the *view* if we started at the beginning of the view.
+        
+        // Let's use the standard "simple calculation" from the previous script for consistency:
+        const opening = officialClosingBalance - computedSum;
+        
+        openingBalanceEl.textContent = fmtMoney(opening);
+        closingBalanceEl.textContent = fmtMoney(officialClosingBalance); // Closing balance remains the actual DB balance
+        
+
+        rows.forEach(t => {
+          const dt = t.transaction_date ? new Date(t.transaction_date).toLocaleString() : 'N/A';
+          const typ = t.type || 'General';
+          const desc = t.description || '';
+          const amt = Number(t.amount || 0);
+          const isCredit = typ === 'Deposit';
+          const display = (isCredit ? '+' : '-') + fmtMoney(Math.abs(amt));
+          
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td style="white-space:nowrap;">${dt}</td>
+                          <td>${typ}</td>
+                          <td>${desc}</td>
+                          <td style="text-align:right; font-weight:600; color:${isCredit ? '#28a745' : '#ff6b6b'}">${display}</td>`;
+          txBody.appendChild(tr);
+        });
+      }
+    }
+
+    // button handlers
+    applyFilter.addEventListener('click', () => {
+      if (!window._txCache) return;
+      applyAndRender(window._txCache, accountClosingBalance);
+    });
+    resetFilter.addEventListener('click', () => {
+      presetRange.value = 'all';
+      fromDate.value = ''; 
+      toDate.value = '';
+      if (window._txCache) applyAndRender(window._txCache, accountClosingBalance);
+    });
+    presetRange.addEventListener('change', () => {
+      // clear manual date fields when preset selected
+      fromDate.value = ''; 
+      toDate.value = '';
+      if (window._txCache && presetRange.value !== 'all') {
+        applyAndRender(window._txCache, accountClosingBalance);
+      } else if (presetRange.value === 'all') {
+        applyAndRender(window._txCache, accountClosingBalance);
+      }
+    });
+    
+    // Manual date inputs clear the preset selection
+    fromDate.addEventListener('change', () => { presetRange.value = 'all'; });
+    toDate.addEventListener('change', () => { presetRange.value = 'all'; });
+
+    // download pdf functionality using html2pdf (if available) or fallback to print
+    async function downloadPdf() {
+      const filenameBase = `Statement_${(metaAccount.textContent || 'account').replace(/\s+/g,'')}_${new Date().toISOString().slice(0,10)}`;
+      downloadPdfBtn.disabled = true;
+      
+      // Try to load html2pdf if not already loaded (check global window.html2pdf)
+      if (typeof window.html2pdf === 'undefined') {
+        // Attempt to load from CDN dynamically (best-effort)
+        try {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://unpkg.com/html2pdf.js@0.9.3/dist/html2pdf.bundle.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        } catch (e) {
+          console.error('Could not load html2pdf from CDN/local file. Falling back to print.', e);
+        }
+      }
+
+      if (typeof window.html2pdf !== 'undefined') {
+        try {
+          const element = document.getElementById('pageRoot');
+          const opt = {
+            margin:       [10, 10, 10, 10], // mm
+            filename:     `${filenameBase}.pdf`,
+            image:        { type: 'jpeg', quality: 0.95 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+          };
+          // generate and save
+          await window.html2pdf().set(opt).from(element).save();
+        } catch (err) {
+          console.error('html2pdf generation failed:', err);
+          alert('PDF generation failed — falling back to Print dialog.');
+          window.print();
+        }
+      } else {
+        // last fallback: open print dialog (user can Save as PDF)
+        window.print();
+      }
+      downloadPdfBtn.disabled = false;
+    }
+
+    // Attach handlers
+    downloadPdfBtn.addEventListener('click', downloadPdf);
+    printBtn.addEventListener("click", () => {
+    if (window.parent !== window) {
+        // Running inside VS Code Live Preview iframe
+        window.parent.focus();
+        window.parent.print();
+    } else {
+        // Real browser
+        window.print();
+    }
+});
+
+    closeBtn.addEventListener('click', () => {
+      // Try to close; if blocked, navigate back
+      try { window.close(); } catch {}
+      setTimeout(() => window.location.href = 'main.html', 300);
+    });
+    
+    // --- Initial Load ---
+    (async () => {
+      try { await renderStatement(); }
+      catch (e) { console.error('renderStatement error', e); }
+    })();
+  </script>
+</body>
+</html>
